@@ -78,6 +78,8 @@ INSTALLED_APPS = [
     'djangocms_frontend.contrib.image',
     'djangocms_frontend.contrib.tabs',
     'djangocms_frontend.contrib.utilities',
+
+    'django_s3_storage',
 ]
 
 MIDDLEWARE = [
@@ -207,11 +209,14 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # read the setting value from the environment variable
 DEFAULT_STORAGE_DSN = os.environ.get('DEFAULT_STORAGE_DSN')
 
-# dsn_configured_storage_class() requires the name of the setting
-DefaultStorageClass = dsn_configured_storage_class('DEFAULT_STORAGE_DSN')
+if DEFAULT_STORAGE_DSN:
+    # dsn_configured_storage_class() requires the name of the setting
+    DefaultStorageClass = dsn_configured_storage_class('DEFAULT_STORAGE_DSN')
 
-# Django's DEFAULT_FILE_STORAGE requires the class name
-DEFAULT_FILE_STORAGE = 'backend.settings.DefaultStorageClass'
+    # Django's DEFAULT_FILE_STORAGE requires the class name
+    DEFAULT_FILE_STORAGE = 'backend.settings.DefaultStorageClass'
+else:
+    DEFAULT_FILE_STORAGE = "django_s3_storage.storage.S3Storage"
 
 # only required for local file storage and serving, in development
 MEDIA_URL = 'media/'
@@ -219,3 +224,10 @@ MEDIA_ROOT = os.path.join('/data/media/')
 
 
 SITE_ID = 1
+
+
+AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", "http://minio:9000")
+AWS_S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME", "django-cms-test")
+# https://github.com/etianen/django-s3-storage/issues/124
+# AWS_S3_PUBLIC_URL = os.getenv("AWS_S3_PUBLIC_URL", "http://localhost:9000")
+AWS_S3_BUCKET_AUTH = os.getenv("AWS_S3_BUCKET_AUTH", "").lower() == "true"
