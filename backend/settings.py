@@ -1,5 +1,8 @@
 from pathlib import Path
 import os
+import random
+import string
+import sys
 import dj_database_url
 from django_storage_url import dsn_configured_storage_class
 
@@ -8,17 +11,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', '<a string of random characters>')
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    print("WARNING: SECRET_KEY not set, using random string")
+    SECRET_KEY = ''.join(random.choice(string.ascii_letters + string.digits + string.punctuation) for _ in range(64))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG') == "True"
+DEBUG = os.getenv('DEBUG') == "True"
 
-ALLOWED_HOSTS = [os.environ.get('DOMAIN'),]
+ALLOWED_HOSTS = [os.getenv('DOMAIN'),]
 if DEBUG:
     ALLOWED_HOSTS = ["*",]
 
 # Redirect to HTTPS by default, unless explicitly disabled
-SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT') != "False"
+SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT') != "False"
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
@@ -153,7 +159,9 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 # Configure database using DATABASE_URL; fall back to sqlite in memory when no
 # environment variable is available, e.g. during Docker build
-DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite://:memory:')
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise ValueError('DATABASE_URL is required')
 DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
@@ -201,22 +209,18 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles_collected')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = os.getenv('STATICFILES_STORAGE', 'whitenoise.storage.CompressedManifestStaticFilesStorage')
 
 # Media files
-# DEFAULT_FILE_STORAGE is configured using DEFAULT_STORAGE_DSN
 
+DEFAULT_FILE_STORAGE = os.getenv('DEFAULT_FILE_STORAGE', 'django_s3_storage.storage.S3Storage')
 # read the setting value from the environment variable
-DEFAULT_STORAGE_DSN = os.environ.get('DEFAULT_STORAGE_DSN')
-
+DEFAULT_STORAGE_DSN = os.getenv('DEFAULT_STORAGE_DSN')
 if DEFAULT_STORAGE_DSN:
     # dsn_configured_storage_class() requires the name of the setting
     DefaultStorageClass = dsn_configured_storage_class('DEFAULT_STORAGE_DSN')
-
     # Django's DEFAULT_FILE_STORAGE requires the class name
     DEFAULT_FILE_STORAGE = 'backend.settings.DefaultStorageClass'
-else:
-    DEFAULT_FILE_STORAGE = "django_s3_storage.storage.S3Storage"
 
 # only required for local file storage and serving, in development
 MEDIA_URL = 'media/'
@@ -225,9 +229,31 @@ MEDIA_ROOT = os.path.join('/data/media/')
 
 SITE_ID = 1
 
+# https://github.com/etianen/django-s3-storage/tree/0.13.10#file-storage-settings
 
-AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", "http://minio:9000")
-AWS_S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME", "django-cms-test")
-# https://github.com/etianen/django-s3-storage/issues/124
-# AWS_S3_PUBLIC_URL = os.getenv("AWS_S3_PUBLIC_URL", "http://localhost:9000")
-AWS_S3_BUCKET_AUTH = os.getenv("AWS_S3_BUCKET_AUTH", "").lower() == "true"
+for env in (
+    "AWS_S3_BUCKET_NAME",
+    "AWS_S3_ENDPOINT_URL",
+    "AWS_S3_KEY_PREFIX",
+    # https://github.com/etianen/django-s3-storage/issues/124
+    "AWS_S3_PUBLIC_URL",
+
+    # https://github.com/etianen/django-s3-storage/tree/0.13.10#staticfiles-storage-settings
+    "AWS_S3_BUCKET_NAME_STATIC",
+    "AWS_S3_ENDPOINT_URL_STATIC",
+    "AWS_S3_KEY_PREFIX_STATIC",
+    "AWS_S3_PUBLIC_URL_STATIC",
+):
+    value = os.getenv(env)
+    if value:
+        print(f"Setting {env}={value}")
+        setattr(sys.modules[__name__], env, value)
+
+for env in (
+    "AWS_S3_BUCKET_AUTH",
+    "AWS_S3_BUCKET_AUTH_STATIC",
+
+):
+    value = os.getenv(env, "").lower() == "true"
+    print(f"Setting {env}={value}")
+    setattr(sys.modules[__name__], env, value)
