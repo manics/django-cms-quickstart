@@ -232,6 +232,8 @@ SITE_ID = 1
 # https://github.com/etianen/django-s3-storage/tree/0.13.10#file-storage-settings
 
 for env in (
+    "AWS_REGION",
+
     "AWS_S3_BUCKET_NAME",
     "AWS_S3_ENDPOINT_URL",
     "AWS_S3_KEY_PREFIX",
