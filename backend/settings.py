@@ -229,33 +229,22 @@ MEDIA_ROOT = os.path.join('/data/media/')
 
 SITE_ID = 1
 
+
 # https://github.com/etianen/django-s3-storage/tree/0.13.10#file-storage-settings
+# Convert all DJANGO_SETTINGS_AWS_* environment variables to settings
+# by removing DJANGO_SETTINGS_ prefix
+def _is_true(v):
+    return v.lower() == "true"
 
-for env in (
-    "AWS_REGION",
+_convert_envvar_types = {
+    "AWS_S3_BUCKET_AUTH": _is_true,
+    "AWS_S3_BUCKET_AUTH_STATIC": _is_true,
+}
 
-    "AWS_S3_BUCKET_NAME",
-    "AWS_S3_ENDPOINT_URL",
-    "AWS_S3_KEY_PREFIX",
-    # https://github.com/etianen/django-s3-storage/issues/124
-    "AWS_S3_PUBLIC_URL",
-
-    # https://github.com/etianen/django-s3-storage/tree/0.13.10#staticfiles-storage-settings
-    "AWS_S3_BUCKET_NAME_STATIC",
-    "AWS_S3_ENDPOINT_URL_STATIC",
-    "AWS_S3_KEY_PREFIX_STATIC",
-    "AWS_S3_PUBLIC_URL_STATIC",
-):
-    value = os.getenv(env)
-    if value:
-        print(f"Setting {env}={value}")
-        setattr(sys.modules[__name__], env, value)
-
-for env in (
-    "AWS_S3_BUCKET_AUTH",
-    "AWS_S3_BUCKET_AUTH_STATIC",
-
-):
-    value = os.getenv(env, "").lower() == "true"
-    print(f"Setting {env}={value}")
-    setattr(sys.modules[__name__], env, value)
+for (_env_key, _env_value) in os.environ.items():
+    if _env_key.startswith('DJANGO_SETTINGS_AWS_'):
+        _env_key = _env_key[16:]
+        if _env_key in _convert_envvar_types:
+            _env_value = _convert_envvar_types[_env_key](_env_value)
+        print(f"Setting {_env_key}={_env_value}")
+        setattr(sys.modules[__name__], _env_key, _env_value)
