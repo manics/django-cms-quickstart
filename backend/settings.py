@@ -246,5 +246,6 @@ for (_env_key, _env_value) in os.environ.items():
         _env_key = _env_key[16:]
         if _env_key in _convert_envvar_types:
             _env_value = _convert_envvar_types[_env_key](_env_value)
-        print(f"Setting {_env_key}={_env_value}")
+        if DEBUG:
+            print(f"Setting {_env_key}={_env_value}")
         setattr(sys.modules[__name__], _env_key, _env_value)
